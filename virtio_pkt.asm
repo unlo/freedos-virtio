@@ -1140,9 +1140,10 @@ do_send:
     pop     es
 
     ; Get a free TX descriptor slot
-    ; Use round-robin: tx_avail_head mod VRING_SIZE
+    ; Use round-robin: mod our NUM_TX slots, NOT VRING_SIZE
+    ; (would corrupt avail.ring indices 4..255, causing QEMU "index 256" panic)
     mov     ax, [tx_avail_head]
-    and     ax, VRING_MASK
+    and     ax, (NUM_TX - 1)
     mov     [tx_slot], ax       ; slot index
 
     ; Fill TX descriptors in TX vring page (tx_vring_seg)
@@ -1390,8 +1391,7 @@ rx_poll:
     jmp     .poll_loop
 
 .repost_short:
-    pop     es
-    ; slot already in bx, repost without delivery
+    ; No extra pop es here — caller already did pop es before jle.
     mov     [rx_pkt_slot], bx
     jmp     .repost
 
